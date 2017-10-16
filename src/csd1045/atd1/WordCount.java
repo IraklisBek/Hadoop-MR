@@ -22,7 +22,7 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
 public class WordCount extends Configured implements Tool {
-  private static final Logger LOG = Logger.getLogger(WordCount.class);
+  private static final Logger LOG = Logger.getLogger(StopWords.class);
   public static void main(String[] args) throws Exception {
     int res = ToolRunner.run(new WordCount(), args);
     System.exit(res);
@@ -76,8 +76,6 @@ public class WordCount extends Configured implements Tool {
       for (IntWritable count : counts) {
         sum += count.get();
       }
-      if(sum>4000)
-    	  context.write(word, new IntWritable(sum));
     }
   }
 }
