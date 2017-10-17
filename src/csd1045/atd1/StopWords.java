@@ -1,47 +1,66 @@
 package csd1045.atd1;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.ByteBuffer;
 import java.util.regex.Pattern;
-import java.util.*;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparator;
 import org.apache.log4j.Logger;
-import org.apache.hadoop.fs.FileSystem;
 
 public class StopWords extends Configured implements Tool {
+
+
+
+	public static class IntComparator extends WritableComparator {
+
+		public IntComparator() {
+			super(IntWritable.class);
+		}
+
+		@Override
+		public int compare(byte[] b1, int s1, int l1, byte[] b2,
+				int s2, int l2) {
+			Integer v1 = ByteBuffer.wrap(b1, s1, l1).getInt();
+			Integer v2 = ByteBuffer.wrap(b2, s2, l2).getInt();
+			return v1.compareTo(v2) * (-1);
+		}
+	}
+
 	private static final Logger LOG = Logger.getLogger(StopWords.class);
 	private static final String OUTPUT_PATH = "intermediate_output";
 	
+
 	public static void main(String[] args) throws Exception {
+		
 		int res = ToolRunner.run(new StopWords(), args);
 		System.exit(res);
 	}
 
   	public int run(String[] args) throws Exception {
   		Configuration conf = getConf();
-  		FileSystem fs = FileSystem.get(conf);
+  		
   		Job job1 = Job.getInstance(conf, "wordcount");
   		job1.setJarByClass(this.getClass());
-  		
+
   		job1.setMapperClass(MapWordCount.class);
   		job1.setReducerClass(ReduceWordCount.class);
-  		
+
   		job1.setOutputKeyClass(Text.class);
   		job1.setOutputValueClass(IntWritable.class);
 
@@ -49,52 +68,36 @@ public class StopWords extends Configured implements Tool {
   		job1.setOutputFormatClass(TextOutputFormat.class);  		
   		TextInputFormat.addInputPath(job1, new Path(args[0]));
   		TextOutputFormat.setOutputPath(job1, new Path(OUTPUT_PATH));
-  		
+
   		job1.waitForCompletion(true);
-  		
-  		
-  		
+
+
+
   		Job job2 = Job.getInstance(conf, "somethingelse");
   		job2.setJarByClass(this.getClass());
-  		
+
   		job2.setMapperClass(MapStopWords.class);
   		job2.setReducerClass(ReduceStopWords.class);
-  		
+  		//job2.setCombinerClass(ReduceStopWords.class);
+
   		job2.setOutputKeyClass(IntWritable.class);
   		job2.setOutputValueClass(Text.class);
-
-  		job2.setInputFormatClass(TextInputFormat.class);
+  		
+  		job2.setInputFormatClass(KeyValueTextInputFormat.class);
   		job2.setOutputFormatClass(TextOutputFormat.class); 
   		
+  		
+  		job2.setSortComparatorClass(IntComparator.class);
   		TextInputFormat.addInputPath(job2, new Path(OUTPUT_PATH));
   		TextOutputFormat.setOutputPath(job2, new Path(args[1]));
-  	  
+
   		return job2.waitForCompletion(true) ? 0 : 1;
-  		
-  		//return job1.waitForCompletion(true) ? 0 : 1;
-  		
-  		/*Job job = Job.getInstance(getConf(), "stopwords");
-  		job.setJarByClass(this.getClass());
-  		FileInputFormat.addInputPath(job, new Path(args[0]));
-  		FileOutputFormat.setOutputPath(job, new Path(args[1]));
-  		job.setMapperClass(Map.class);
-  		job.setCombinerClass(Reduce.class);
-  		job.setReducerClass(Reduce.class);
-  		job.setOutputKeyClass(Text.class);
-  		job.setOutputValueClass(IntWritable.class);
-  		return job.waitForCompletion(true) ? 0 : 1;*/
   	}
 
   	public static class MapWordCount extends Mapper<LongWritable, Text, Text, IntWritable> {
-	  
-	  	private final static IntWritable one = new IntWritable(1);
-	  	//private boolean caseSensitive = false;
 	  	private static final Pattern WORD_BOUNDARY = Pattern.compile("\\s*\\b\\s*");
 	  	private static final Pattern ALPHA_NUMERIC = Pattern.compile("[^ a-zA-Z0-9]");
-	  	/*protected void setup(Context context)throws IOException, InterruptedException {
-	  		Configuration config = context.getConfiguration();
-	  		this.caseSensitive = config.getBoolean("stopwords.case.sensitive", false);
-	  	}*/
+	  	@Override
 	  	public void map(LongWritable offset, Text value, Context context) throws IOException, InterruptedException {
 	  		String line = value.toString().toLowerCase();
 	  		String words[] = WORD_BOUNDARY.split(line);
@@ -104,16 +107,15 @@ public class StopWords extends Configured implements Tool {
 	  		}
 	  	}
   	}
-
-  	public static class MapStopWords extends Mapper<LongWritable, Text, IntWritable, Text> {
-  	  
-	  	public void map(LongWritable offset, Text value, Context context) throws IOException, InterruptedException {
-	  		String line = value.toString();
-	  		String words[] = line.split("\\s+");
-	  		context.write(new IntWritable(Integer.parseInt(words[1])), new Text(words[0]));
-	  	}
-  	}
   	
+	public static class MapStopWords extends Mapper< Text, Text, IntWritable, Text> {
+		@Override
+		public void map(Text key, Text value, Context context)throws IOException, InterruptedException {
+			context.write(new IntWritable(Integer.parseInt(value.toString())), key);
+		}
+	}
+	
+
   	public static class ReduceWordCount extends Reducer<Text, IntWritable, Text, IntWritable> {
 	  	@Override
 	  	public void reduce(Text word, Iterable<IntWritable> counts, Context context) throws IOException, InterruptedException {
@@ -126,20 +128,17 @@ public class StopWords extends Configured implements Tool {
 	  	}
   	}
   	
-  	public static class ReduceStopWords extends Reducer<IntWritable, Text, Text, IntWritable> {
-	  	public void reduce(IntWritable counts, Text word, Context context) throws IOException, InterruptedException {
-	  		context.write(word, counts);
-	  	}
+  	public static class ReduceStopWords extends Reducer<IntWritable, Text, IntWritable, Text> {
+  		int i=0;
+		@Override
+		public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+			i++;
+			if(i<11){
+				for (Text value : values) {
+					context.write(key, value);
+				}
+			}
+		}
   	}
-  	
-  	/*public static class Reduce extends Reducer<Text, IntWritable, Text, IntWritable> {
-	  	@Override
-	  	public void reduce(Text word, Iterable<IntWritable> counts, Context context) throws IOException, InterruptedException {
-	  		int sum = 0;
-	  		for (IntWritable count : counts) {
-	  			sum += count.get();
-	  		}
-	  		context.write(word, new IntWritable(sum));
-	  	}
-  	}*/
+
 }
