@@ -1,4 +1,4 @@
-package exercise1;
+package exercise2a;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -11,9 +11,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
@@ -89,7 +87,7 @@ public class StopWords extends Configured implements Tool {
   		job2.setJarByClass(this.getClass());
 
   		job2.setMapperClass(MapStopWords.class);
-  		job2.setReducerClass(ReduceStopWords.class);
+  		job2.setReducerClass(ReduceTopKStopWords.class);
 
   		job2.setOutputKeyClass(IntWritable.class);
   		job2.setOutputValueClass(Text.class);
@@ -150,35 +148,13 @@ public class StopWords extends Configured implements Tool {
 	  	}
   	}
   	
-  	public static class ReduceStopWords extends Reducer<IntWritable, Text, IntWritable, Text> {
-  		private Map<String, Integer> stop_words;
-  		CSV csv;
-  		
-  		@Override
-  		protected void setup(Context context){
-  			stop_words = new LinkedHashMap<String, Integer>();
-  			csv = new CSV();
-  		}
+  	public static class ReduceTopKStopWords extends Reducer<IntWritable, Text, IntWritable, Text> {
 		@Override
 		public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
 			for(Text value :  values){
-				stop_words.put(value.toString(), key.get());				
+				context.write(key, value);
 			}		
         }
-		
-		@Override
-		protected void cleanup(Context context) throws IOException, InterruptedException {
-			int k=1;
-			int freq=0;
-			for(String stop_word : stop_words.keySet()){
-				freq = stop_words.get(stop_word);
-				csv.addStopWordToCSV(stop_word, freq);
-				if(k<10)
-					context.write(new IntWritable(freq),new Text(stop_word));
-				k++;
-			}
-			csv.closeCSV();
-		}
 
   	}
 
