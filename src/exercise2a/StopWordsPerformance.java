@@ -1,4 +1,4 @@
-package exercise1;
+package exercise2a;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -43,7 +43,7 @@ import org.apache.hadoop.io.WritableComparator;
 import org.apache.log4j.Logger;
 
 
-public class StopWords extends Configured implements Tool {
+public class StopWordsPerformance extends Configured implements Tool {
 
 
 
@@ -61,11 +61,11 @@ public class StopWords extends Configured implements Tool {
 		}
 	}
 
-	private static final Logger LOG = Logger.getLogger(StopWords.class);	
+	private static final Logger LOG = Logger.getLogger(StopWordsPerformance.class);	
 	
 	public static void main(String[] args) throws Exception {
 		
-		int res = ToolRunner.run(new StopWords(), args);
+		int res = ToolRunner.run(new StopWordsPerformance(), args);
 		System.exit(res);
 	}
 

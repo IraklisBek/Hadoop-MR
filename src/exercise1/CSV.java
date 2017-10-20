@@ -24,7 +24,7 @@ public class CSV {
 	
 	public CSV(){
 		try {
-			this.fileWriter = new FileWriter("/stopwords.csv");
+			this.fileWriter = new FileWriter(System.getProperty("user.home")+"/stopwords.csv");
 			fileWriter.append(FILE_HEADER.toString());
 			fileWriter.append(NEW_LINE_SEPERATOR);
 			
