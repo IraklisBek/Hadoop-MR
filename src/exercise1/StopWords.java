@@ -28,6 +28,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
@@ -108,8 +109,18 @@ public class StopWords extends Configured implements Tool {
   		
   		TextInputFormat.addInputPath(job2, new Path(args[1]));
   		TextOutputFormat.setOutputPath(job2, new Path(args[2]));
-
-  		return job2.waitForCompletion(true) ? 0 : 1;
+  		
+  		boolean finished = job2.waitForCompletion(true);
+  		job2.waitForCompletion(true);
+  		
+        FileSystem hdfs = FileSystem.get(getConf());
+        FileStatus fs[] = hdfs.listStatus(new Path("/"));
+        if (fs != null){ 
+            hdfs.rename(new Path("/topK/stopwords.csv-r-00000"), new Path("/stopwords.csv"));
+        }
+  		
+  		
+  		return finished ? 0 : 1;
   		
   	}
 
