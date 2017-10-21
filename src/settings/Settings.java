@@ -29,7 +29,8 @@ public class Settings {
 	private String doc_to_count_words;
 	
 	public Settings(){
-		skipPatterns = new HashSet<>();
+		this.skipPatterns = new HashSet<>();
+		this.doc_to_count_words="No Document Selected To Count Words";
 	}
 	
 	public Settings(String[] args, Job job){
@@ -38,8 +39,7 @@ public class Settings {
 		this.combiner="false";
 		this.numReducers="1";
 		this.compress="false";
-		this.doc_to_count_words="No Document Selected To Count Words";
-		skipFiles = new ArrayList<>();
+		this.skipFiles = new ArrayList<>();
 		
 	}
 	

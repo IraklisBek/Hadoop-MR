@@ -1,6 +1,9 @@
-package exercise2b;
+package exercise3;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.io.IOException;
 import java.util.regex.Pattern;
@@ -28,15 +31,11 @@ import exercise2a.StopWordsPerformance;
 import settings.Settings;
 
 
-public class InvertedIndex extends Configured implements Tool {
+public class InvertedIndexExtention extends Configured implements Tool {
 	private static final Logger LOG = Logger.getLogger(StopWordsPerformance.class);	
-	
-	public static enum COUNTERS{
-		DOC_WORDS
-	}
-	
+
 	public static void main(String[] args) throws Exception {
-		int res = ToolRunner.run(new InvertedIndex(), args);
+		int res = ToolRunner.run(new InvertedIndexExtention(), args);
 		System.exit(res);
 	}
 
@@ -45,7 +44,6 @@ public class InvertedIndex extends Configured implements Tool {
 		Configuration conf = getConf();
 		settings = new Settings();
 		settings.selectDocToCountWord(args);
-		conf.set("doc_to_count_words", settings.getDocToCountWords());
 		Job job = Job.getInstance(conf, "inverted_index");
 		settings = new Settings(args, job);
 		settings.setSkipFiles();
@@ -53,27 +51,20 @@ public class InvertedIndex extends Configured implements Tool {
 		settings.setNumReducers();
 		settings.setCompress(conf);
 		settings.deleteFile(args[1]);
-		
-		
-		System.out.println();
+
+
 		job.setJarByClass(this.getClass());
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
-		
+
 		job.setMapperClass(Map.class);
 		job.setReducerClass(Reduce.class);	
-		
+
 		job.setOutputKeyClass(Text.class);
-		job.setOutputValueClass(Text.class);
-		
-		MultipleOutputs.addNamedOutput(job, "counter", TextOutputFormat.class, Text.class, Text.class);
-		
+		job.setOutputValueClass(Text.class);		
+
 		boolean finished = job.waitForCompletion(true);
-		job.waitForCompletion(true);
-		Counters counters = job.getCounters();
-		Counter doc_words = counters.findCounter(COUNTERS.DOC_WORDS);
-		System.out.println(doc_words.getValue() + " " + conf.get("doc_to_count_words"));
-		settings.createFile("/counter", doc_words.getValue() + " words in file " + conf.get("doc_to_count_words"));												
+		job.waitForCompletion(true);											
 		return finished ? 0 : 1;
 	}
 
@@ -83,7 +74,7 @@ public class InvertedIndex extends Configured implements Tool {
 		private static final Pattern ALPHA_NUMERIC = Pattern.compile("[^ a-zA-Z0-9]");
 		private Text location = new Text();
 		public static Settings settings;
-		
+
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
 			settings = new Settings();
@@ -105,30 +96,29 @@ public class InvertedIndex extends Configured implements Tool {
 	}
 
 	public static class Reduce extends Reducer<Text, Text, Text, Text> {
-		private String doc_to_count_words;
 		private int i;
-		
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
-			doc_to_count_words = conf.get("doc_to_count_words").toString();
 			i=0;
 		}
 		@Override
 		public void reduce(Text word, Iterable<Text> values, Context context)throws IOException, InterruptedException {
-			boolean first = true;
-			StringBuilder docs = new StringBuilder();
-			for(Text value : values){
-				if (!first){
-					docs.append(", ");
-				}
-				first=false;
-				docs.append(value.toString());
-				if(value.toString().equals(doc_to_count_words)){
-					context.getCounter(COUNTERS.DOC_WORDS).increment(1);
-				}
+			List<Text> list_values = new ArrayList<>();
+			for (Text value : values) {
+				list_values.add(new Text(value));
 			}
+			Set<Text> unique_values = new HashSet<Text>(list_values);
+			String output = new String();
+			for (Text uv : unique_values){
+				output += uv.toString()+'#'+Collections.frequency(list_values, uv);
+				output += ',';
+			}
+			output = output.substring(0, output.length()-1);
+			Text value = new Text();
+			value.set(output);
 			i++;
-			context.write(new Text(String.valueOf(i) + " " + word), new Text(docs.toString()));
+			context.write(new Text(String.valueOf(i) + " " + word), value);
+
 		}
 	}
 }

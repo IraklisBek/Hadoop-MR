@@ -83,6 +83,8 @@ public class StopWordsPerformance extends Configured implements Tool {
   		job1Settings.setNumReducers();
   		job1Settings.setCompress(conf);
   		job1Settings.setSkipFiles();
+  		job1Settings.deleteFile(args[1]);
+  		job1Settings.deleteFile(args[2]);
   		
   		job1.setJarByClass(this.getClass());
 
