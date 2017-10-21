@@ -28,6 +28,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
@@ -72,11 +73,21 @@ public class StopWordsPerformance extends Configured implements Tool {
   	public int run(String[] args) throws Exception {
 
   		Configuration conf = getConf();
+  		if(args[3].equals("true")){
+  	  		conf.set("mapreduce.map.output.compress", "true");
+  	  		conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec"); 			
+  		}
+
+  		
   		Job job1 = Job.getInstance(conf, "stop_words");
   		job1.setJarByClass(this.getClass());
 
   		job1.setMapperClass(MapStopWords.class);
+  		if(args[5].equals("true")){
+  			job1.setCombinerClass(ReduceStopWords.class);
+  		}
   		job1.setReducerClass(ReduceStopWords.class);
+  		job1.setNumReduceTasks(Integer.parseInt(args[4]));
 
   		job1.setOutputKeyClass(Text.class);
   		job1.setOutputValueClass(IntWritable.class);
@@ -108,8 +119,18 @@ public class StopWordsPerformance extends Configured implements Tool {
   		
   		TextInputFormat.addInputPath(job2, new Path(args[1]));
   		TextOutputFormat.setOutputPath(job2, new Path(args[2]));
-
-  		return job2.waitForCompletion(true) ? 0 : 1;
+  		
+  		boolean finished = job2.waitForCompletion(true);
+  		job2.waitForCompletion(true);
+  		
+        FileSystem hdfs = FileSystem.get(getConf());
+        FileStatus fs[] = hdfs.listStatus(new Path("/"));
+        if (fs != null){ 
+            hdfs.rename(new Path("/topK/stopwords.csv-r-00000"), new Path("/stopwords.csv"));
+        }
+  		
+  		
+  		return finished ? 0 : 1;
   		
   	}
 
@@ -172,7 +193,8 @@ public class StopWordsPerformance extends Configured implements Tool {
 			for(String stop_word : stop_words.keySet()){
 				freq = stop_words.get(stop_word);
 				mos.write("stopwords", new Text(stop_word+", "), freq, "stopwords.csv");
-				if(k<10)
+				LOG.info(freq);
+				if(k<=10)
 					context.write(new IntWritable(freq),new Text(stop_word));
 				k++;
 			}
