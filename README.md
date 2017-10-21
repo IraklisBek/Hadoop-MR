@@ -22,10 +22,10 @@ This is a project on Hadoop and MapReduce implemented on University purposes. Th
 -doc_to_count_words doc   | where you set the program to count the number of words the doc contains
 ```
 
-  # Examples of running exercise 2b
+  # Examples of running exercise2b InvertedIndex.java
 
 ```sh
- hadoop jar /home/cloudera/project.jar exercise2b.InvertedIndex /shakespeare /inverted_index -combiner true -skip stopwords.csv 
- hadoop jar /home/cloudera/project.jar exercise2b.InvertedIndex /shakespeare /inverted_index -skip stopwords.csv -doc_to_count_words 4 
+ hadoop jar /home/cloudera/project.jar exercise2b.InvertedIndex /input /output -combiner true -skip stopwords.csv 
+ hadoop jar /home/cloudera/project.jar exercise2b.InvertedIndex /input /output -skip stopwords.csv -doc_to_count_words 4 
 
 ```
