@@ -26,6 +26,9 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
+import settings.Settings;
+
+
 public class InvertedIndex extends Configured implements Tool {
 	
 	public enum COUNTER{
@@ -38,15 +41,10 @@ public class InvertedIndex extends Configured implements Tool {
 	}
 
 	public int run(String[] args) throws Exception {
-		Job job = Job.getInstance(getConf(), "InvertedIndex");
-		for (int i = 0; i < args.length; i++) {
-			if ("-skip".equals(args[i])) {
-				job.getConfiguration().setBoolean("wordcount.skip.patterns", true);
-				i+=1;
-				job.addCacheFile(new Path(args[i]).toUri());
-				
-			}
-		}
+			
+		Job job = Job.getInstance(getConf(), "inverted_index");
+		Settings settings = new Settings(args, job);	
+		settings.setSkipFiles(job);
 		job.setJarByClass(this.getClass());
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
@@ -68,7 +66,7 @@ public class InvertedIndex extends Configured implements Tool {
 
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration config = context.getConfiguration();
-			if (config.getBoolean("wordcount.skip.patterns", false)) {
+			if (config.getBoolean("inverted_index.skip.patterns", false)) {
 				URI[] localPaths = context.getCacheFiles();
 				parseSkipFile(localPaths[0]);
 			}

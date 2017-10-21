@@ -43,6 +43,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparator;
 import org.apache.log4j.Logger;
 
+import settings.Settings;
+
 
 public class StopWordsPerformance extends Configured implements Tool {
 
@@ -71,43 +73,21 @@ public class StopWordsPerformance extends Configured implements Tool {
 	}
 
   	public int run(String[] args) throws Exception {
-
+  		
   		Configuration conf = getConf();
   		
   		Job job1 = Job.getInstance(conf, "stop_words");
-  		String combiner="false";
-  		String numReducers="1";
-  		String compress="false";
-		for (int i = 0; i < args.length; i++) {
-			if ("-combiner".equals(args[i])) {
-				i+=1;
-				if(args[i].equals("true"))
-					combiner = "true";
-			}
-			if ("-numReducers".equals(args[i])) {
-				i+=1;
-				numReducers = args[i];
-			}
-			if ("-compress".equals(args[i])) {
-				i+=1;
-				if(args[i].equals("true"))
-					compress = "true";
-			}
-		}
+  		Settings job1Settings = new Settings(args, job1);
   		
-  		if(compress.equals("true")){
-  	  		conf.set("mapreduce.map.output.compress", "true");
-  	  		conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec"); 			
-  		}
+  		job1Settings.setCombiner();
+  		job1Settings.setNumReducers();
+  		job1Settings.setCompress(conf);
   		
   		job1.setJarByClass(this.getClass());
 
   		job1.setMapperClass(MapStopWords.class);
-  		if(combiner.equals("true")){
-  			job1.setCombinerClass(ReduceStopWords.class);
-  		}
   		job1.setReducerClass(ReduceStopWords.class);
-  		job1.setNumReduceTasks(Integer.parseInt(numReducers));
+  		
 
   		job1.setOutputKeyClass(Text.class);
   		job1.setOutputValueClass(IntWritable.class);
