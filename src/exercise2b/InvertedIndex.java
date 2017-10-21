@@ -27,8 +27,10 @@ import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
 public class InvertedIndex extends Configured implements Tool {
-
-	private static final Logger LOG = Logger.getLogger(InvertedIndex.class);
+	
+	public enum COUNTER{
+		
+	}
 
 	public static void main(String[] args) throws Exception {
 		int res = ToolRunner.run(new InvertedIndex(), args);
@@ -36,7 +38,7 @@ public class InvertedIndex extends Configured implements Tool {
 	}
 
 	public int run(String[] args) throws Exception {
-		Job job = Job.getInstance(getConf(), "wordcount");
+		Job job = Job.getInstance(getConf(), "InvertedIndex");
 		for (int i = 0; i < args.length; i++) {
 			if ("-skip".equals(args[i])) {
 				job.getConfiguration().setBoolean("wordcount.skip.patterns", true);
@@ -49,15 +51,16 @@ public class InvertedIndex extends Configured implements Tool {
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
 		job.setMapperClass(Map.class);
-		job.setCombinerClass(Reduce.class);
+		//job.setCombinerClass(Reduce.class);
 		job.setReducerClass(Reduce.class);
+		job.setNumReduceTasks(2);
+		
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
 		return job.waitForCompletion(true) ? 0 : 1;
 	}
 
 	public static class Map extends Mapper<LongWritable, Text, Text, Text> {
-		private boolean caseSensitive = false;
 		private Set<String> patternsToSkip = new HashSet<String>();
 		private static final Pattern WORD_BOUNDARY = Pattern.compile("\\s*\\b\\s*");
 		private static final Pattern ALPHA_NUMERIC = Pattern.compile("[^ a-zA-Z0-9]");
@@ -65,7 +68,6 @@ public class InvertedIndex extends Configured implements Tool {
 
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration config = context.getConfiguration();
-			this.caseSensitive = config.getBoolean("wordcount.case.sensitive", false);
 			if (config.getBoolean("wordcount.skip.patterns", false)) {
 				URI[] localPaths = context.getCacheFiles();
 				parseSkipFile(localPaths[0]);
@@ -86,19 +88,14 @@ public class InvertedIndex extends Configured implements Tool {
 			}
 		}
 
-		public void map(LongWritable offset, Text lineText, Context context) throws IOException, InterruptedException {
+		public void map(LongWritable offset, Text value, Context context) throws IOException, InterruptedException {
 			FileSplit fileSplit = (FileSplit)context.getInputSplit();
 			String fileName = fileSplit.getPath().getName();
-			String line = lineText.toString();
-			if (!caseSensitive) {
-				line = line.toLowerCase();
-			}
-			Text currentWord = new Text();
+			String line = value.toString().toLowerCase();
 			for (String word : WORD_BOUNDARY.split(line)) {
 				if (!word.isEmpty() && !patternsToSkip.contains(word) && !ALPHA_NUMERIC.matcher(word).find()) {		
-					currentWord = new Text(word);
 					location.set(fileName);
-					context.write(currentWord,location);
+					context.write(new Text(word),location);
 				}
 			}             
 		}
