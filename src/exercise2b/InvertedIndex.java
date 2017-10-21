@@ -1,9 +1,5 @@
 package exercise2b;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 import java.io.IOException;
@@ -13,6 +9,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -20,42 +18,63 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
 
+import exercise2a.StopWordsPerformance;
 import settings.Settings;
 
 
 public class InvertedIndex extends Configured implements Tool {
+	private static final Logger LOG = Logger.getLogger(StopWordsPerformance.class);	
 	
-	public enum COUNTER{
-		
+	public static enum COUNTERS{
+		DOC_WORDS
 	}
-
+	
 	public static void main(String[] args) throws Exception {
 		int res = ToolRunner.run(new InvertedIndex(), args);
 		System.exit(res);
 	}
 
 	public int run(String[] args) throws Exception {
-			
-		Job job = Job.getInstance(getConf(), "inverted_index");
-		Settings settings = new Settings(args, job);	
-		settings.setSkipFiles(job);
+		Settings settings;
+		Configuration conf = getConf();
+		settings = new Settings();
+		settings.selectDocToCountWord(args);
+		conf.set("doc_to_count_words", settings.getDocToCountWords());
+		Job job = Job.getInstance(conf, "inverted_index");
+		settings = new Settings(args, job);
+		settings.setSkipFiles();
+		settings.setCombiner(Reduce.class);
+		settings.setNumReducers();
+		settings.setCompress(conf);
+		settings.deleteFile(args[1]);
+		
+		
+		System.out.println();
 		job.setJarByClass(this.getClass());
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
 		job.setMapperClass(Map.class);
-		//job.setCombinerClass(Reduce.class);
-		job.setReducerClass(Reduce.class);
-		job.setNumReduceTasks(2);
+		job.setReducerClass(Reduce.class);	
 		
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
-		return job.waitForCompletion(true) ? 0 : 1;
+		
+		MultipleOutputs.addNamedOutput(job, "counter", TextOutputFormat.class, Text.class, Text.class);
+		
+		boolean finished = job.waitForCompletion(true);
+		job.waitForCompletion(true);
+		Counters counters = job.getCounters();
+		Counter doc_words = counters.findCounter(COUNTERS.DOC_WORDS);
+		System.out.println(doc_words.getValue() + " " + conf.get("doc_to_count_words"));
+		settings.createFile("/counter", doc_words.getValue() + " words in file " + conf.get("doc_to_count_words"));												
+		return finished ? 0 : 1;
 	}
 
 	public static class Map extends Mapper<LongWritable, Text, Text, Text> {
@@ -63,27 +82,13 @@ public class InvertedIndex extends Configured implements Tool {
 		private static final Pattern WORD_BOUNDARY = Pattern.compile("\\s*\\b\\s*");
 		private static final Pattern ALPHA_NUMERIC = Pattern.compile("[^ a-zA-Z0-9]");
 		private Text location = new Text();
-
+		public static Settings settings;
+		
 		protected void setup(Context context) throws IOException, InterruptedException {
-			Configuration config = context.getConfiguration();
-			if (config.getBoolean("inverted_index.skip.patterns", false)) {
-				URI[] localPaths = context.getCacheFiles();
-				parseSkipFile(localPaths[0]);
-			}
-		}
-
-		private void parseSkipFile(URI patternsURI) {
-			try {
-				@SuppressWarnings("resource")
-				BufferedReader br = new BufferedReader(new FileReader(new File(patternsURI.getPath()).getName()));
-				String pattern;
-				while ((pattern = br.readLine()) != null) {
-					patternsToSkip.add(pattern.split("\\,")[0]);
-				}
-			} catch (IOException ioe) {
-				System.err.println("Caught exception while parsing the cached file '" 
-								+ patternsURI + "' : " + StringUtils.stringifyException(ioe));
-			}
+			Configuration conf = context.getConfiguration();
+			settings = new Settings();
+			settings.parse(conf, context);
+			patternsToSkip = settings.getSkipPatterns();
 		}
 
 		public void map(LongWritable offset, Text value, Context context) throws IOException, InterruptedException {
@@ -100,16 +105,27 @@ public class InvertedIndex extends Configured implements Tool {
 	}
 
 	public static class Reduce extends Reducer<Text, Text, Text, Text> {
+		private String doc_to_count_words;
+		
+		protected void setup(Context context) throws IOException, InterruptedException {
+			Configuration conf = context.getConfiguration();
+			doc_to_count_words = conf.get("doc_to_count_words").toString();
+		}
 		@Override
 		public void reduce(Text word, Iterable<Text> values, Context context)throws IOException, InterruptedException {
 			boolean first = true;
 			StringBuilder docs = new StringBuilder();
 			for(Text value : values){
-				if (!first)
+				if (!first){
 					docs.append(", ");
+				}
 				first=false;
 				docs.append(value.toString());
+				if(value.toString().equals(doc_to_count_words)){
+					context.getCounter(COUNTERS.DOC_WORDS).increment(1);
+				}
 			}
+			
 			context.write(word, new Text(docs.toString()));
 		}
 	}

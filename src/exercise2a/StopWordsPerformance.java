@@ -79,9 +79,10 @@ public class StopWordsPerformance extends Configured implements Tool {
   		Job job1 = Job.getInstance(conf, "stop_words");
   		Settings job1Settings = new Settings(args, job1);
   		
-  		job1Settings.setCombiner();
+  		job1Settings.setCombiner(ReduceStopWords.class);
   		job1Settings.setNumReducers();
   		job1Settings.setCompress(conf);
+  		job1Settings.setSkipFiles();
   		
   		job1.setJarByClass(this.getClass());
 
@@ -193,7 +194,6 @@ public class StopWordsPerformance extends Configured implements Tool {
 			for(String stop_word : stop_words.keySet()){
 				freq = stop_words.get(stop_word);
 				mos.write("stopwords", new Text(stop_word+", "), freq, "stopwords.csv");
-				LOG.info(freq);
 				if(k<=10)
 					context.write(new IntWritable(freq),new Text(stop_word));
 				k++;
