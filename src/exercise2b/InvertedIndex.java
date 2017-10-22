@@ -25,6 +25,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 
 import exercise2a.StopWordsPerformance;
+import exercise3.InvertedIndexExtention.Combiner;
 import settings.Settings;
 
 
@@ -51,7 +52,7 @@ public class InvertedIndex extends Configured implements Tool {
 		settings.setSkipFiles();
 		settings.setCombiner(Reduce.class);
 		settings.setNumReducers();
-		settings.setCompress(conf);
+		settings.setCompress(job);
 		settings.deleteFile(args[1]);
 		
 		
@@ -73,7 +74,7 @@ public class InvertedIndex extends Configured implements Tool {
 		Counters counters = job.getCounters();
 		Counter doc_words = counters.findCounter(COUNTERS.DOC_WORDS);
 		System.out.println(doc_words.getValue() + " " + conf.get("doc_to_count_words"));
-		settings.createFile("/counter", doc_words.getValue() + " words in file " + conf.get("doc_to_count_words"));												
+		settings.createFile("/counter/counters.txt", doc_words.getValue() + " words in file " + conf.get("doc_to_count_words"));												
 		return finished ? 0 : 1;
 	}
 

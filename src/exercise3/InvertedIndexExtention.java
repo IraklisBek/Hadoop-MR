@@ -46,12 +46,12 @@ public class InvertedIndexExtention extends Configured implements Tool {
 		Configuration conf = getConf();
 		settings = new Settings();
 		settings.selectDocToCountWord(args);
-		Job job = Job.getInstance(conf, "inverted_index");
+		Job job = Job.getInstance(conf, "inverted_index_extention");
 		settings = new Settings(args, job);
 		settings.setSkipFiles();
 		settings.setCombiner(Combiner.class);
 		settings.setNumReducers();
-		settings.setCompress(conf);
+		settings.setCompress(job);
 		settings.deleteFile(args[1]);
 
 
@@ -62,7 +62,6 @@ public class InvertedIndexExtention extends Configured implements Tool {
 		job.setMapperClass(Map.class);
 		job.setCombinerClass(Combiner.class);
 		job.setReducerClass(Reduce.class);	
-		job.setNumReduceTasks(2);
 
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);		

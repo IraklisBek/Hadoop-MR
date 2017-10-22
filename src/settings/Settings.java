@@ -14,6 +14,8 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.StringUtils;
 
@@ -74,14 +76,14 @@ public class Settings {
 		}
 	}
 	
-	public void setCompress(Configuration conf){
+	public void setCompress(Job job){
 		for (int i = 0; i < this.args.length; i++) {
 			if ("-compress".equals(this.args[i])) {
 				i+=1;
 				if(this.args[i].equals("true")){
 					this.compress = "true";
-		  	  		conf.set("mapreduce.map.output.compress", this.compress);
-		  	  		conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.SnappyCodec"); 
+					job.getConfiguration().set("mapreduce.output.fileoutputformat.compress ", "true");
+				    job.getConfiguration().set("mapreduce.output.fileoutputformat.compress.codec ", "org.apache.hadoop.io.compress.SnappyCodec");
 				}
 			}
 		}
@@ -136,7 +138,7 @@ public class Settings {
 
 		hdfs.mkdirs(newFolderPath);
 
-		Path newFilePath=new Path(name+"/counters.txt");
+		Path newFilePath=new Path(name);
 		//hdfs.createNewFile(newFilePath);
 
 		StringBuilder sb=new StringBuilder();
