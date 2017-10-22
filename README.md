@@ -34,3 +34,7 @@ This is a project on Hadoop and MapReduce implemented on University purposes. Th
   - exercise1.StopWords.java and exercise2a.StopWordsPerformance should have standard arguments /input /stopwords /topK
   - exercise2b.InvertedIndex.java should run WITHOUT a combiner and have standard arguments /input /inverted_index
   - exercise3.InvertedIndexExtention should run WITH a combiner (-combiner true) and have standard arguments /input /inverted_index_extention
+  
+   # Performance
+   
+   Performance experiments can be found on the Report.pdf
