@@ -29,3 +29,7 @@ This is a project on Hadoop and MapReduce implemented on University purposes. Th
  hadoop jar /home/cloudera/project.jar exercise2b.InvertedIndex /input /output -skip stopwords.csv -doc_to_count_words 4 
 
 ```
+  # NOTES Based on the implementation
+  
+  - exercise2b.InvertedIndex.java should run WITHOUT a combiner 
+  - exercise3.InvertedIndexExtention should run WITH a combiner (-combiner true)
