@@ -49,7 +49,7 @@ public class InvertedIndexExtention extends Configured implements Tool {
 		Job job = Job.getInstance(conf, "inverted_index");
 		settings = new Settings(args, job);
 		settings.setSkipFiles();
-		settings.setCombiner(Reduce.class);
+		settings.setCombiner(Combiner.class);
 		settings.setNumReducers();
 		settings.setCompress(conf);
 		settings.deleteFile(args[1]);
@@ -126,9 +126,9 @@ public class InvertedIndexExtention extends Configured implements Tool {
 					wordDocsFreq.put(word, map2);					
 				}				
 			}
-			HashMap<Text, Integer> map2 = wordDocsFreq.get(word);
-			for(Text doc : map2.keySet()){
-				context.write(new Text(word), new Text(doc + "," + String.valueOf(map2.get(doc))));
+			HashMap<Text, Integer> docsFreq = wordDocsFreq.get(word);
+			for(Text doc : docsFreq.keySet()){
+				context.write(new Text(word), new Text(doc + "," + String.valueOf(docsFreq.get(doc))));
 			}
 		}
 	}
