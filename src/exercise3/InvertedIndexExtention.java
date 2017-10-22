@@ -2,6 +2,7 @@ package exercise3;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +24,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
@@ -58,7 +60,9 @@ public class InvertedIndexExtention extends Configured implements Tool {
 		FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
 		job.setMapperClass(Map.class);
+		job.setCombinerClass(Combiner.class);
 		job.setReducerClass(Reduce.class);	
+		job.setNumReduceTasks(2);
 
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);		
@@ -95,30 +99,66 @@ public class InvertedIndexExtention extends Configured implements Tool {
 		}
 	}
 
-	public static class Reduce extends Reducer<Text, Text, Text, Text> {
-		private int i;
+	public static class Combiner extends Reducer<Text, Text, Text, Text> {
+		HashMap<Text, HashMap<Text, Integer>> wordDocsFreq;
 		protected void setup(Context context) throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
-			i=0;
+			wordDocsFreq = new HashMap<>();
 		}
 		@Override
 		public void reduce(Text word, Iterable<Text> values, Context context)throws IOException, InterruptedException {
-			List<Text> list_values = new ArrayList<>();
 			for (Text value : values) {
-				list_values.add(new Text(value));
-			}
-			Set<Text> unique_values = new HashSet<Text>(list_values);
-			String output = new String();
-			for (Text uv : unique_values){
-				output += uv.toString()+'#'+Collections.frequency(list_values, uv);
-				output += ',';
-			}
-			output = output.substring(0, output.length()-1);
-			Text value = new Text();
-			value.set(output);
-			i++;
-			context.write(new Text(String.valueOf(i) + " " + word), value);
+				if(wordDocsFreq.containsKey(word)){
+					HashMap<Text, Integer> docsFreq = wordDocsFreq.get(word);
+					for(Text doc : docsFreq.keySet()){
+						if(docsFreq.containsKey(value)){
+							int freq = docsFreq.get(doc);
+							freq++;
+							docsFreq.put(doc, freq);
+						}else{
+							docsFreq.put(doc, 1);
+						}
+					}
 
+				}else{
+					HashMap<Text, Integer> map2 = new HashMap<>();
+					map2.put(value, 1);
+					wordDocsFreq.put(word, map2);					
+				}				
+			}
+			HashMap<Text, Integer> map2 = wordDocsFreq.get(word);
+			for(Text doc : map2.keySet()){
+				context.write(new Text(word), new Text(doc + "," + String.valueOf(map2.get(doc))));
+			}
+		}
+	}
+
+	public static class Reduce extends Reducer<Text, Text, Text, Text> {
+		private int i;
+		HashMap<String, String> wordDocsFreq;
+		protected void setup(Context context) throws IOException, InterruptedException {
+			Configuration conf = context.getConfiguration();
+			i=0;
+			wordDocsFreq = new HashMap<>();
+		}
+		public void reduce(Text word, Iterable<Text> values, Context context)throws IOException, InterruptedException {
+
+			for(Text val : values){
+				String []valTokens = val.toString().split(",");
+				if(wordDocsFreq.containsKey(word.toString())){
+					String str = wordDocsFreq.get(word.toString());
+					str += ","+valTokens[0]+"#"+valTokens[1];
+					wordDocsFreq.put(word.toString(), str);
+				}else{
+					wordDocsFreq.put(word.toString(), valTokens[0]+"#"+valTokens[1]);
+				}
+			}
+		}
+		protected void cleanup(Context context) throws IOException, InterruptedException {
+			for(String w : wordDocsFreq.keySet()){
+				context.write(new Text(String.valueOf(i) + " " + w), new Text(wordDocsFreq.get(w)));
+				i++;
+			}
 		}
 	}
 }
