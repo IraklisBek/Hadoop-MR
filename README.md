@@ -12,7 +12,7 @@ This is a project on Hadoop and MapReduce implemented on University purposes. Th
   - For Exercises 2a, 2b, 3 there are some options added. These options are:
   
 ```sh
--combine true   | where you set the program to run with a combiner
+-combiner true   | where you set the program to run with a combiner
 -numReucers 10  | where you set the program to run with 10 reducers. Of course, you can set whatever num you want
 -compress true  | where you set the program to run with compression
 -skip file      | where you set the program to skip patterns you dont want to include in your results (stopwords for example)
