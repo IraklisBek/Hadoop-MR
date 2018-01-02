@@ -1,4 +1,4 @@
-# ATD1
+# Hadoop MR
 
 This is a project on Hadoop and MapReduce implemented on University purposes. The project focuses on these issues:
 
